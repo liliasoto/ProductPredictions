@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Prediction</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .container {
+            text-align: center;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        #image-preview {
+            width: 100%;
+            height: 280px;
+            background: #eaeaea;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            flex: 1;
+            margin: 0 5px;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        #prediction-result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Product Prediction</h1>
+        <div id="image-preview">
+            <span>Image preview</span>
+        </div>
+        <div class="buttons">
+            <button id="load-image">Load Image</button>
+            <button id="predict" disabled>Predict</button>
+        </div>
+        <p id="prediction-result"></p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
+    <script>
+        let model;
+        const imagePreview = document.getElementById('image-preview');
+        const loadImageButton = document.getElementById('load-image');
+        const predictButton = document.getElementById('predict');
+        const predictionResult = document.getElementById('prediction-result');
+        let inputImage;
+
+        const classNames = [
+            "T-shirt/top",    // Clase 0
+            "Trouser",        // Clase 1
+            "Pullover",       // Clase 2
+            "Dress",          // Clase 3
+            "Coat",           // Clase 4
+            "Sandal",         // Clase 5
+            "Shirt",          // Clase 6
+            "Sneaker",        // Clase 7
+            "Bag",            // Clase 8
+            "Ankle boot"      // Clase 9
+        ];
+
+
+        // Load the model
+        async function loadModel() {
+          console.log("Cargando modelo...");
+          model = await tf.loadLayersModel("model.json");
+          console.log("Modelo cargado...");
+
+        }
+
+        // Handle image upload
+        loadImageButton.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (event) => {
+                const file = event.target.files[0];
+                const reader = new FileReader();
+
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        try {
+                            inputImage = tf.browser.fromPixels(img)
+                                .resizeNearestNeighbor([28, 28]) // Redimensiona la imagen a 28x28
+                                .mean(2) // Convierte a escala de grises tomando el promedio de los canales
+                                .expandDims(-1) // Agrega la dimensión del canal (1 para escala de grises)
+                                .expandDims(0) // Agrega la dimensión del batch
+                                .toFloat()
+                                .div(255.0); // Normaliza los valores entre 0 y 1
+                            imagePreview.innerHTML = '';
+                            imagePreview.appendChild(img);
+                            predictButton.disabled = false;
+                        } catch (error) {
+                            console.error('Error processing the image:', error);
+                            alert('Error processing the image. Please try again.');
+                        }
+                    };
+                };
+
+                reader.readAsDataURL(file);
+            };
+
+            input.click();
+        });
+
+        // Predict function
+        predictButton.addEventListener('click', async () => {
+            if (!model || !inputImage) return;
+            try {
+                const predictions = model.predict(inputImage);
+                const predictedIndex = predictions.argMax(-1).dataSync()[0]; // Obtén el índice de la predicción
+                const predictedClassName = classNames[predictedIndex]; // Traduce el índice al nombre de la prenda
+
+                predictionResult.innerText = `Prediction Successful! Predicted Class: ${predictedClassName}`;
+                alert(`Prediction Successful! Predicted Class: ${predictedClassName}`);
+            } catch (error) {
+                console.error('Error during prediction:', error);
+                alert('Prediction failed. Please try again.');
+            }
+        });
+
+
+        // Initialize model loading
+        loadModel();
+    </script>
+</body>
+</html>
